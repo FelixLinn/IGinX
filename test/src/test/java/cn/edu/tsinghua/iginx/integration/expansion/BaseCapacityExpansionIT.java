@@ -842,7 +842,7 @@ public abstract class BaseCapacityExpansionIT {
         expPort, true, true, dataPrefix1, schemaPrefix1, portsToExtraParams.get(expPort));
     testShowColumnsInExpansion(false, false);
     // 测试StorageUnit作为dataPrefix时的添加，show columns时能否正确显示而不过滤掉
-    addStorageEngine(expPort, true, true, dataPrefix3, null, portsToExtraParams.get(expPort));
+    addStorageEngine(expPort, true, true, dataPrefix3, schemaPrefix1, portsToExtraParams.get(expPort));
     testShowColumnsInExpansion(false, true);
 
     // 添加节点 dataPrefix = dataPrefix1 && schemaPrefix = p1 后查询
@@ -1021,8 +1021,8 @@ public abstract class BaseCapacityExpansionIT {
               + "|                                                                  nt.wf03.wt01.status2|    LONG|\n"
               + "|                                                              nt.wf04.wt01.temperature|  DOUBLE|\n"
               + "|                                                               p1.nt.wf03.wt01.status2|    LONG|\n"
-              + "|                                                             unit0000000000.b.c.status|    LONG|\n"
-              + "|                                                        unit0000000000.b.c.temperature|  DOUBLE|\n"
+              + "|                                                          p1.unit0000000000.b.c.status|    LONG|\n"
+              + "|                                                     p1.unit0000000000.b.c.temperature|  DOUBLE|\n"
               + "|zzzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzzzz|    LONG|\n"
               + "+--------------------------------------------------------------------------------------+--------+\n"
               + "Total line number = 9\n";

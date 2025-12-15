@@ -118,8 +118,8 @@ public class RedisCapacityExpansionIT extends BaseCapacityExpansionIT {
               + "|                                                                  nt.wf03.wt01.status2|  BINARY|\n"
               + "|                                                              nt.wf04.wt01.temperature|  BINARY|\n"
               + "|                                                               p1.nt.wf03.wt01.status2|  BINARY|\n"
-              + "|                                                             unit0000000000.b.c.status|    LONG|\n"
-              + "|                                                        unit0000000000.b.c.temperature|  DOUBLE|\n"
+              + "|                                                          p1.unit0000000000.b.c.status|    LONG|\n"
+              + "|                                                     p1.unit0000000000.b.c.temperature|  DOUBLE|\n"
               + "|zzzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzzzz|  BINARY|\n"
               + "+--------------------------------------------------------------------------------------+--------+\n"
               + "Total line number = 9\n";

@@ -206,16 +206,16 @@ public class OracleCapacityExpansionIT extends BaseCapacityExpansionIT {
     } else {
       expected =
           "Columns:\n"
-              + "+------------------------------+--------+\n"
-              + "|                          Path|DataType|\n"
-              + "+------------------------------+--------+\n"
-              + "|                ln.wf02.status| BOOLEAN|\n"
-              + "|               ln.wf02.version|  BINARY|\n"
-              + "|          nt.wf03.wt01.status2|    LONG|\n"
-              + "|      nt.wf04.wt01.temperature|  DOUBLE|\n"
-              + "|       p1.nt.wf03.wt01.status2|    LONG|\n"
-              + "|     unit0000000000.b.c.status|    LONG|\n"
-              + "|unit0000000000.b.c.temperature|  DOUBLE|\n"
+              + "+---------------------------------+--------+\n"
+              + "|                             Path|DataType|\n"
+              + "+---------------------------------+--------+\n"
+              + "|                   ln.wf02.status| BOOLEAN|\n"
+              + "|                  ln.wf02.version|  BINARY|\n"
+              + "|             nt.wf03.wt01.status2|    LONG|\n"
+              + "|         nt.wf04.wt01.temperature|  DOUBLE|\n"
+              + "|          p1.nt.wf03.wt01.status2|    LONG|\n"
+              + "|     p1.unit0000000000.b.c.status|    LONG|\n"
+              + "|p1.unit0000000000.b.c.temperature|  DOUBLE|\n"
               + "+------------------------------+--------+\n"
               + "Total line number = 7\n";
     }
