@@ -842,7 +842,8 @@ public abstract class BaseCapacityExpansionIT {
         expPort, true, true, dataPrefix1, schemaPrefix1, portsToExtraParams.get(expPort));
     testShowColumnsInExpansion(false, false);
     // 测试StorageUnit作为dataPrefix时的添加，show columns时能否正确显示而不过滤掉
-    addStorageEngine(expPort, true, true, dataPrefix3, schemaPrefix1, portsToExtraParams.get(expPort));
+    addStorageEngine(
+        expPort, true, true, dataPrefix3, schemaPrefix1, portsToExtraParams.get(expPort));
     testShowColumnsInExpansion(false, true);
 
     // 添加节点 dataPrefix = dataPrefix1 && schemaPrefix = p1 后查询
