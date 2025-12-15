@@ -165,7 +165,7 @@ public class OracleCapacityExpansionIT extends BaseCapacityExpansionIT {
   }
 
   @Override
-  protected void testShowColumnsInExpansion(boolean before) {
+  protected void testShowColumnsInExpansion(boolean before, boolean dataPrefixWithStorageUnit) {
     String statement = "SHOW COLUMNS nt.wf03.*;";
     String expected =
         "Columns:\n"
@@ -190,7 +190,7 @@ public class OracleCapacityExpansionIT extends BaseCapacityExpansionIT {
               + "|nt.wf04.wt01.temperature|  DOUBLE|\n"
               + "+------------------------+--------+\n"
               + "Total line number = 4\n";
-    } else { // 添加schemaPrefix为p1，dataPrefix为nt.wf03的数据源
+    } else if (!dataPrefixWithStorageUnit) { // 添加schemaPrefix为p1，dataPrefix为nt.wf03的数据源
       expected =
           "Columns:\n"
               + "+------------------------+--------+\n"
@@ -203,6 +203,21 @@ public class OracleCapacityExpansionIT extends BaseCapacityExpansionIT {
               + "| p1.nt.wf03.wt01.status2|    LONG|\n"
               + "+------------------------+--------+\n"
               + "Total line number = 5\n";
+    } else {
+      expected =
+          "Columns:\n"
+              + "+------------------------------+--------+\n"
+              + "|                          Path|DataType|\n"
+              + "+------------------------------+--------+\n"
+              + "|                ln.wf02.status| BOOLEAN|\n"
+              + "|               ln.wf02.version|  BINARY|\n"
+              + "|          nt.wf03.wt01.status2|    LONG|\n"
+              + "|      nt.wf04.wt01.temperature|  DOUBLE|\n"
+              + "|       p1.nt.wf03.wt01.status2|    LONG|\n"
+              + "|     unit0000000000.b.c.status|    LONG|\n"
+              + "|unit0000000000.b.c.temperature|  DOUBLE|\n"
+              + "+------------------------------+--------+\n"
+              + "Total line number = 7\n";
     }
     SQLTestTools.executeAndCompare(session, statement, expected, true);
 

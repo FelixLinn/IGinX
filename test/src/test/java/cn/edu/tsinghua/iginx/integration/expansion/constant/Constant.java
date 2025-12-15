@@ -63,6 +63,9 @@ public class Constant {
   public static final List<String> EXP_EXTEND_PATH_LIST =
       Arrays.asList("a.a.b.status2", "a.a.b.temperature");
 
+  public static final List<String> EXP_EXTEND_PATH_LIST1 =
+      Arrays.asList("unit0000000000.b.c.status", "unit0000000000.b.c.temperature");
+
   public static final List<String> EXP_PATH_LIST1 =
       Collections.singletonList("nt.wf03.wt01.status2");
 
