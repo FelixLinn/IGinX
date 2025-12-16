@@ -992,9 +992,11 @@ public abstract class BaseCapacityExpansionIT {
               + "|                                                                       ln.wf02.version|  BINARY|\n"
               + "|                                                                  nt.wf03.wt01.status2|    LONG|\n"
               + "|                                                              nt.wf04.wt01.temperature|  DOUBLE|\n"
+              + "|                                                             unit0000000000.b.c.status|    LONG|\n"
+              + "|                                                        unit0000000000.b.c.temperature|  DOUBLE|\n"
               + "|zzzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzzzz|    LONG|\n"
               + "+--------------------------------------------------------------------------------------+--------+\n"
-              + "Total line number = 6\n";
+              + "Total line number = 8\n";
     } else if (!dataPrefixWithStorageUnit) { // 添加schemaPrefix为p1，dataPrefix为nt.wf03的数据源
       expected =
           "Columns:\n"
@@ -1007,9 +1009,11 @@ public abstract class BaseCapacityExpansionIT {
               + "|                                                                  nt.wf03.wt01.status2|    LONG|\n"
               + "|                                                              nt.wf04.wt01.temperature|  DOUBLE|\n"
               + "|                                                               p1.nt.wf03.wt01.status2|    LONG|\n"
+              + "|                                                             unit0000000000.b.c.status|    LONG|\n"
+              + "|                                                        unit0000000000.b.c.temperature|  DOUBLE|\n"
               + "|zzzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzzzz|    LONG|\n"
               + "+--------------------------------------------------------------------------------------+--------+\n"
-              + "Total line number = 7\n";
+              + "Total line number = 9\n";
     } else {
       expected =
           "Columns:\n"
@@ -1024,9 +1028,11 @@ public abstract class BaseCapacityExpansionIT {
               + "|                                                               p1.nt.wf03.wt01.status2|    LONG|\n"
               + "|                                                          p1.unit0000000000.b.c.status|    LONG|\n"
               + "|                                                     p1.unit0000000000.b.c.temperature|  DOUBLE|\n"
+              + "|                                                             unit0000000000.b.c.status|    LONG|\n"
+              + "|                                                        unit0000000000.b.c.temperature|  DOUBLE|\n"
               + "|zzzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzzzz|    LONG|\n"
               + "+--------------------------------------------------------------------------------------+--------+\n"
-              + "Total line number = 9\n";
+              + "Total line number = 11\n";
     }
     SQLTestTools.executeAndCompare(session, statement, expected, true);
 

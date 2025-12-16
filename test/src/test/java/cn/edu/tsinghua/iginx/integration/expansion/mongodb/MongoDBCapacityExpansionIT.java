@@ -72,10 +72,12 @@ public class MongoDBCapacityExpansionIT extends BaseCapacityExpansionIT {
               + "|                                                                  nt.wf03.wt01.status2|    LONG|\n"
               + "|                                                                           nt.wf04._id| INTEGER|\n"
               + "|                                                              nt.wf04.wt01.temperature|  DOUBLE|\n"
+              + "|                                                             unit0000000000.b.c.status|    LONG|\n"
+              + "|                                                        unit0000000000.b.c.temperature|  DOUBLE|\n"
               + "|                          zzzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzz._id| INTEGER|\n"
               + "|zzzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzzzz|    LONG|\n"
               + "+--------------------------------------------------------------------------------------+--------+\n"
-              + "Total line number = 10\n";
+              + "Total line number = 12\n";
     } else if (!dataPrefixWithStorageUnit) { // 添加schemaPrefix为p1，dataPrefix为nt.wf03的数据源
       expected =
           "Columns:\n"
@@ -92,10 +94,12 @@ public class MongoDBCapacityExpansionIT extends BaseCapacityExpansionIT {
               + "|                                                              nt.wf04.wt01.temperature|  DOUBLE|\n"
               + "|                                                                        p1.nt.wf03._id| INTEGER|\n"
               + "|                                                               p1.nt.wf03.wt01.status2|    LONG|\n"
+              + "|                                                             unit0000000000.b.c.status|    LONG|\n"
+              + "|                                                        unit0000000000.b.c.temperature|  DOUBLE|\n"
               + "|                          zzzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzz._id| INTEGER|\n"
               + "|zzzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzzzz|    LONG|\n"
               + "+--------------------------------------------------------------------------------------+--------+\n"
-              + "Total line number = 12\n";
+              + "Total line number = 14\n";
     } else {
       expected =
           "Columns:\n"
@@ -114,10 +118,12 @@ public class MongoDBCapacityExpansionIT extends BaseCapacityExpansionIT {
               + "|                                                               p1.nt.wf03.wt01.status2|    LONG|\n"
               + "|                                                          p1.unit0000000000.b.c.status|    LONG|\n"
               + "|                                                     p1.unit0000000000.b.c.temperature|  DOUBLE|\n"
+              + "|                                                             unit0000000000.b.c.status|    LONG|\n"
+              + "|                                                        unit0000000000.b.c.temperature|  DOUBLE|\n"
               + "|                          zzzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzz._id| INTEGER|\n"
               + "|zzzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzzzz|    LONG|\n"
               + "+--------------------------------------------------------------------------------------+--------+\n"
-              + "Total line number = 14\n";
+              + "Total line number = 16\n";
     }
     SQLTestTools.executeAndCompare(session, statement, expected, true);
 
