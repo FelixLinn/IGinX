@@ -54,6 +54,16 @@ public abstract class AbstractRelationalMeta {
    */
   public abstract IDataTypeTransformer getDataTypeTransformer();
 
+  public abstract String getAvgCastExpressionBase();
+
+  public abstract String getAvgCastExpressionDefault();
+
+  public abstract boolean isBoundaryQueryUseDbConnection();
+
+  public abstract String getBoundaryQueryCatalogColumn();
+
+  public abstract String getBoundaryQuerySchemaColumn();
+
   /**
    * 获取系统数据库名称，用于忽略，如pg的template0,template1
    *
@@ -186,4 +196,11 @@ public abstract class AbstractRelationalMeta {
 
   /** 获取单行的最大字节数 */
   public abstract int getMaxSingleRowSizeLimit();
+
+  public abstract boolean isJdbcStrictPathEscape();
+
+  /**
+   * 字符串字面量中是否将反斜杠视为转义字符。为 true 时（如 MySQL）生成字面量需先转义 \ 再转义引号； 为 false 时（如 PostgreSQL 标准）仅通过引号加倍转义。
+   */
+  public abstract boolean isStringLiteralBackslashEscape();
 }

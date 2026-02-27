@@ -66,6 +66,7 @@ import cn.edu.tsinghua.iginx.relational.tools.ColumnField;
 import cn.edu.tsinghua.iginx.relational.tools.FilterTransformer;
 import cn.edu.tsinghua.iginx.relational.tools.QuoteBaseExpressionDecorator;
 import cn.edu.tsinghua.iginx.relational.tools.RelationSchema;
+import cn.edu.tsinghua.iginx.relational.tools.SqlStringUtils;
 import cn.edu.tsinghua.iginx.thrift.DataType;
 import cn.edu.tsinghua.iginx.utils.Pair;
 import cn.edu.tsinghua.iginx.utils.StringUtils;
@@ -116,6 +117,10 @@ public class RelationalStorage implements IStorage {
 
   private final char quote;
 
+  private final int maxSingleRowSizeLimit;
+
+  private final int maxColumnNumLimit;
+
   public RelationalStorage(StorageEngineMeta meta)
       throws StorageInitializationException, SQLException {
     this.meta = meta;
@@ -125,7 +130,7 @@ public class RelationalStorage implements IStorage {
       throw new StorageInitializationException("cannot build relational meta: ", e);
     }
     engineName = meta.getExtraParams().get("engine");
-    dbStrategy = DatabaseStrategyFactory.getStrategy(engineName, relationalMeta, meta);
+    dbStrategy = DatabaseStrategyFactory.create(relationalMeta, meta);
     if (!testConnection(this.meta)) {
       throw new StorageInitializationException("cannot connect to " + meta.toString());
     }
@@ -133,6 +138,9 @@ public class RelationalStorage implements IStorage {
     Connection conn = dbStrategy.initConnection();
     escape = conn.getMetaData().getSearchStringEscape();
     quote = relationalMeta.getQuote();
+    // 限制：maxSingleRowSizeLimit需要减8,maxColumnNumLimit需要减1，留出一列给Key
+    maxSingleRowSizeLimit = buildSingleRowSizeLimit() - 8;
+    maxColumnNumLimit = buildMaxColumnNumLimit() - 1;
   }
 
   private void buildRelationalMeta() throws RelationalTaskExecuteFailureException {
@@ -150,6 +158,68 @@ public class RelationalStorage implements IStorage {
     }
   }
 
+  private int buildSingleRowSizeLimit() {
+    // 保留一列给key
+    int systemLimit = relationalMeta.getMaxSingleRowSizeLimit();
+    String configValue = meta.getExtraParams().get("max_single_row_size");
+    if (configValue == null) {
+      LOGGER.info("max_single_row_size is not provided, using default limit {}", systemLimit);
+      return systemLimit;
+    }
+    try {
+      // 解析用户配置
+      int configuredLimit = Integer.parseInt(configValue);
+      // 最小值校验：至少要能存下一个 Binary 和 LONG 类型的数据
+      // 假设 Binary 是最小单位，防止用户配出负数或 0
+      int minLimit =
+          relationalMeta.getDataTypeTransformer().getDataTypeSize(DataType.BINARY)
+              + relationalMeta.getDataTypeTransformer().getDataTypeSize(DataType.LONG);
+      if (configuredLimit < minLimit) {
+        LOGGER.warn(
+            "Configured max_single_row_size ({}) is too small (valid payload < {}). Using default limit {}",
+            configValue,
+            minLimit,
+            systemLimit);
+        return systemLimit;
+      }
+      return configuredLimit;
+    } catch (NumberFormatException e) {
+      LOGGER.warn(
+          "Invalid format for max_single_row_size: '{}'. Using default limit {}",
+          configValue,
+          systemLimit);
+      return systemLimit;
+    }
+  }
+
+  private int buildMaxColumnNumLimit() {
+    int systemLimit = relationalMeta.getMaxColumnNumLimit();
+    String configValue = meta.getExtraParams().get("max_column_num");
+    if (configValue == null) {
+      LOGGER.info("max_column_num is not provided, using default {}", systemLimit);
+      return systemLimit;
+    }
+    try {
+      int configuredLimit = Integer.parseInt(configValue);
+      if (configuredLimit < 2) {
+        LOGGER.warn(
+            "Configured max_column_num ({}) is too small. Using default limit {}",
+            configValue,
+            systemLimit);
+        return systemLimit;
+      }
+      return configuredLimit;
+    } catch (NumberFormatException e) {
+      LOGGER.warn(
+          "Invalid format for max_column_num: '{}'. Using default limit {}",
+          configValue,
+          systemLimit);
+      return systemLimit;
+    }
+  }
+
+  private static final String DEFAULT_META_FILE = "default-meta.properties";
+
   private Properties getProperties(String engine, @Nullable String propertiesPath)
       throws URISyntaxException, IOException {
     if (propertiesPath != null) {
@@ -162,25 +232,42 @@ public class RelationalStorage implements IStorage {
       }
     }
 
+    // 先加载 default-meta（PostgreSQL 基线），再按 engine 覆盖差异，减少各 engine 配置量
+    URL defaultUrl = getClass().getClassLoader().getResource(DEFAULT_META_FILE);
+    if (defaultUrl == null) {
+      throw new IOException("cannot find default meta: " + DEFAULT_META_FILE);
+    }
+    Properties properties = new Properties();
+    try (InputStream is = defaultUrl.openStream()) {
+      properties.load(is);
+    }
     String metaFileName = engine.toLowerCase() + META_TEMPLATE_SUFFIX;
-    LOGGER.info("loading engine '{}' default properties from class path: {}", engine, metaFileName);
-    URL url = getClass().getClassLoader().getResource(metaFileName);
-    if (url == null) {
-      throw new IOException("cannot find default meta properties file: " + metaFileName);
+    URL engineUrl = getClass().getClassLoader().getResource(metaFileName);
+    if (engineUrl != null) {
+      LOGGER.info(
+          "loading engine '{}' overrides from {} (base: {})",
+          engine,
+          metaFileName,
+          DEFAULT_META_FILE);
+      try (InputStream is = engineUrl.openStream()) {
+        Properties overrides = new Properties();
+        overrides.load(is);
+        properties.putAll(overrides);
+      }
+    } else {
+      LOGGER.info("no engine-specific '{}', using {} only", metaFileName, DEFAULT_META_FILE);
     }
-    try (InputStream propertiesIS = url.openStream()) {
-      Properties properties = new Properties();
-      properties.load(propertiesIS);
-      return properties;
-    }
+    return properties;
   }
 
   @Override
   public boolean testConnection(StorageEngineMeta meta) {
     try {
       Class.forName(relationalMeta.getDriverClass());
-      DriverManager.getConnection(dbStrategy.getConnectUrl());
-      return true;
+      try (Connection conn = DriverManager.getConnection(dbStrategy.getConnectUrl())) {
+        // Connection is automatically closed by try-with-resources
+        return true;
+      }
     } catch (SQLException | ClassNotFoundException e) {
       LOGGER.error("Cannot connect to {}", meta, e);
       return false;
@@ -2605,6 +2692,9 @@ public class RelationalStorage implements IStorage {
 
   /** JDBC中的路径中的 . 不需要转义 */
   private String reformatForJDBC(String path) {
+    if (relationalMeta.isJdbcStrictPathEscape()) {
+      return StringUtils.reformatPath(path).replace("\\\\\\", "\\\\\\\\\\").replace("\\.", ".");
+    }
     return StringUtils.reformatPath(path).replace("\\.", ".");
   }
 
@@ -2757,9 +2847,6 @@ public class RelationalStorage implements IStorage {
     List<Integer> columnIndexList = new ArrayList<>();
     columnIndexList.add(0);
     int singleRowSize = existedRowSize, columnNum = existedColumnNum;
-    // 限制：maxSingleRowSizeLimit需要减8,maxColumnNumLimit需要减1，留出一列给Key
-    int maxSingleRowSizeLimit = relationalMeta.getMaxSingleRowSizeLimit() - 8,
-        maxColumnNumLimit = relationalMeta.getMaxColumnNumLimit() - 1;
     for (int i = 0; i < columnCount; i++) {
       int colSize = relationalMeta.getDataTypeTransformer().getDataTypeSize(columnList.get(i).v);
       // 单列超限
@@ -3060,7 +3147,12 @@ public class RelationalStorage implements IStorage {
               Object rawValue = data.getValue(i, index);
               if (rawValue != null) {
                 if (dataType == DataType.BINARY) {
-                  value = "'" + new String((byte[]) rawValue, StandardCharsets.UTF_8) + "'";
+                  value =
+                      "'"
+                          + SqlStringUtils.escapeSqlSingleQuotedLiteral(
+                              new String((byte[]) rawValue, StandardCharsets.UTF_8),
+                              relationalMeta.isStringLiteralBackslashEscape())
+                          + "'";
                 } else {
                   value = rawValue.toString();
                 }
@@ -3188,7 +3280,12 @@ public class RelationalStorage implements IStorage {
               Object rawValue = data.getValue(i, index);
               if (rawValue != null) {
                 if (dataType == DataType.BINARY) {
-                  value = "'" + new String((byte[]) rawValue, StandardCharsets.UTF_8) + "'";
+                  value =
+                      "'"
+                          + SqlStringUtils.escapeSqlSingleQuotedLiteral(
+                              new String((byte[]) rawValue, StandardCharsets.UTF_8),
+                              relationalMeta.isStringLiteralBackslashEscape())
+                          + "'";
                 } else {
                   value = rawValue.toString();
                 }
@@ -3289,7 +3386,7 @@ public class RelationalStorage implements IStorage {
     // 构造 regex
     String regexBase = toRegex(logicalTableName + TABLE_SUFFIX_DELIMITER);
     String tableNameRegex = "^" + regexBase + "([0-9]+)$";
-    Pattern pattern = Pattern.compile(tableNameRegex);
+    Pattern pattern = Pattern.compile(tableNameRegex, Pattern.CASE_INSENSITIVE);
     return foundTables.stream()
         .filter(t -> pattern.matcher(t).matches())
         .collect(Collectors.toList());
@@ -3337,7 +3434,7 @@ public class RelationalStorage implements IStorage {
   }
 
   private String getQuotName(String name) {
-    return quote + name + quote;
+    return SqlStringUtils.wrapWithQuotedContent(name, quote);
   }
 
   private String getQuotColumnNames(String columnNames) {

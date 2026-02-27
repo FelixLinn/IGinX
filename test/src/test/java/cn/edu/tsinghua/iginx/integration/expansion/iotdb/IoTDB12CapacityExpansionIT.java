@@ -19,15 +19,18 @@
  */
 package cn.edu.tsinghua.iginx.integration.expansion.iotdb;
 
-import static cn.edu.tsinghua.iginx.integration.expansion.utils.SQLTestTools.executeShellScript;
 import static cn.edu.tsinghua.iginx.thrift.StorageEngineType.iotdb12;
-import static org.junit.Assert.fail;
 
 import cn.edu.tsinghua.iginx.integration.expansion.BaseCapacityExpansionIT;
 import cn.edu.tsinghua.iginx.integration.expansion.constant.Constant;
 import cn.edu.tsinghua.iginx.integration.expansion.utils.SQLTestTools;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import org.apache.iotdb.rpc.IoTDBConnectionException;
+import org.apache.iotdb.rpc.StatementExecutionException;
+import org.apache.iotdb.session.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,21 +41,36 @@ public class IoTDB12CapacityExpansionIT extends BaseCapacityExpansionIT {
   public IoTDB12CapacityExpansionIT() {
     super(
         iotdb12,
-        "username=root, password=root, sessionPoolSize=20",
+        createPortsToExtraParams(
+            new HashMap<String, String>() {
+              {
+                put("username", "root");
+                put("password", "root");
+                put("sessionPoolSize", "20");
+              }
+            }),
         new IoTDB12HistoryDataGenerator());
-    wrongExtraParams.add("username=root, password=wrong, sessionPoolSize=20");
-    wrongExtraParams.add("username=wrong, password=root, sessionPoolSize=20");
+    Map<String, String> wrongParams1 = new HashMap<>();
+    wrongParams1.put("username", "root");
+    wrongParams1.put("password", "wrong");
+    wrongParams1.put("sessionPoolSize", "20");
+    wrongExtraParams.add(wrongParams1);
+    Map<String, String> wrongParams2 = new HashMap<>();
+    wrongParams2.put("username", "wrong");
+    wrongParams2.put("password", "root");
+    wrongParams2.put("sessionPoolSize", "20");
+    wrongExtraParams.add(wrongParams2);
     updatedParams.put("password", "newPassword");
   }
 
   @Override
   protected void updateParams(int port) {
-    changeParams(port, "root", "newPassword");
+    changeParams(port, "root", updatedParams.get("password"));
   }
 
   @Override
   protected void restoreParams(int port) {
-    changeParams(port, "newPassword", "root");
+    changeParams(port, updatedParams.get("password"), "root");
   }
 
   @Override
@@ -66,17 +84,14 @@ public class IoTDB12CapacityExpansionIT extends BaseCapacityExpansionIT {
   }
 
   private void changeParams(int port, String oldPw, String newPw) {
-    String scriptPath = updateParamsScriptDir + "iotdb.sh";
-    String os = System.getProperty("os.name").toLowerCase();
-    if (os.contains("mac")) {
-      scriptPath = updateParamsScriptDir + "iotdb_macos.sh";
-    } else if (os.contains("win")) {
-      scriptPath = updateParamsScriptDir + "iotdb_windows.sh";
-    }
-    // 脚本参数：对应端口，旧密码，新密码
-    int res = executeShellScript(scriptPath, String.valueOf(port), oldPw, newPw);
-    if (res != 0) {
-      fail("Fail to update iotdb params.");
+    try {
+      Session session = new Session("127.0.0.1", port, "root", oldPw);
+      session.open();
+      session.executeNonQueryStatement(String.format("ALTER USER root SET PASSWORD '%s';", newPw));
+      session.close();
+      LOGGER.info("alter password to 127.0.0.1:{} success!", port);
+    } catch (IoTDBConnectionException | StatementExecutionException e) {
+      LOGGER.error("alter password to 127.0.0.1:{} failure: ", port, e);
     }
   }
 

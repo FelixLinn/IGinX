@@ -19,19 +19,16 @@
  */
 package cn.edu.tsinghua.iginx.integration.expansion.mysql;
 
-import static cn.edu.tsinghua.iginx.integration.expansion.utils.SQLTestTools.executeShellScript;
-import static org.junit.Assert.fail;
-
 import cn.edu.tsinghua.iginx.exception.SessionException;
-import cn.edu.tsinghua.iginx.integration.controller.Controller;
 import cn.edu.tsinghua.iginx.integration.expansion.BaseCapacityExpansionIT;
 import cn.edu.tsinghua.iginx.integration.expansion.constant.Constant;
 import cn.edu.tsinghua.iginx.integration.expansion.utils.SQLTestTools;
-import cn.edu.tsinghua.iginx.integration.tool.ConfLoader;
-import cn.edu.tsinghua.iginx.integration.tool.DBConf;
 import cn.edu.tsinghua.iginx.thrift.StorageEngineType;
-import java.util.Arrays;
-import java.util.List;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,24 +39,26 @@ public class MySQLCapacityExpansionIT extends BaseCapacityExpansionIT {
   public MySQLCapacityExpansionIT() {
     super(
         StorageEngineType.relational,
-        "engine=mysql, username=root",
+        createPortsToExtraParams(
+            new HashMap<String, String>() {
+              {
+                put("engine", "mysql");
+                put("username", "root");
+              }
+            }),
         new MySQLHistoryDataGenerator());
-    ConfLoader conf = new ConfLoader(Controller.CONFIG_FILE);
-    DBConf dbConf = conf.loadDBConf(conf.getStorageType());
-    Constant.oriPort = dbConf.getDBCEPortMap().get(Constant.ORI_PORT_NAME);
-    Constant.expPort = dbConf.getDBCEPortMap().get(Constant.EXP_PORT_NAME);
-    Constant.readOnlyPort = dbConf.getDBCEPortMap().get(Constant.READ_ONLY_PORT_NAME);
-    updatedParams.put("password", "newPassword");
+    updatedParams.put("password", "newPassword,\\\"\\'");
   }
 
   @Override
   protected void updateParams(int port) {
-    changeParams(port, null, "newPassword");
+    changeParams(port, null, "newPassword,\\\\\"\\'");
   }
 
   @Override
   protected void restoreParams(int port) {
-    changeParams(port, "newPassword", null);
+    // JDBC的密码连接不涉及转义问题，直接传入原始密码即可
+    changeParams(port, "newPassword,\\\"'", "");
   }
 
   @Override
@@ -73,19 +72,19 @@ public class MySQLCapacityExpansionIT extends BaseCapacityExpansionIT {
   }
 
   private void changeParams(int port, String oldPw, String newPw) {
-    String scriptPath = updateParamsScriptDir + "mysql.sh";
-    String mode = oldPw == null ? "set" : "unset";
-    String os = System.getProperty("os.name").toLowerCase();
-    if (os.contains("mac")) {
-      scriptPath = updateParamsScriptDir + "mysql_macos.sh";
-    } else if (os.contains("win")) {
-      scriptPath = updateParamsScriptDir + "mysql_windows.sh";
+    String jdbcUrl = String.format("jdbc:mysql://127.0.0.1:%d/", port);
+    try {
+      Class.forName("com.mysql.cj.jdbc.Driver");
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException(e);
     }
-    // 脚本参数：对应端口，模式（是在无密码条件下设置密码，还是在有密码条件下去掉密码），需要设置的密码/需要被去掉的密码
-    int res =
-        executeShellScript(scriptPath, String.valueOf(port), mode, oldPw == null ? newPw : oldPw);
-    if (res != 0) {
-      fail("Fail to update mysql params.");
+    try (Connection connection = DriverManager.getConnection(jdbcUrl, "root", oldPw);
+        Statement stmt = connection.createStatement()) {
+      String alterStmt = String.format("ALTER USER 'root'@'localhost' IDENTIFIED BY '%s';", newPw);
+      LOGGER.info("alter statement in {}: {}", port, alterStmt);
+      stmt.execute(alterStmt);
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
     }
   }
 

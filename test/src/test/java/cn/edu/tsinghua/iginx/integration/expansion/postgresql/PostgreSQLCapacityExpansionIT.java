@@ -19,21 +19,19 @@
  */
 package cn.edu.tsinghua.iginx.integration.expansion.postgresql;
 
-import static cn.edu.tsinghua.iginx.integration.expansion.utils.SQLTestTools.executeShellScript;
-import static org.junit.Assert.fail;
-
 import cn.edu.tsinghua.iginx.exception.SessionException;
-import cn.edu.tsinghua.iginx.integration.controller.Controller;
 import cn.edu.tsinghua.iginx.integration.expansion.BaseCapacityExpansionIT;
 import cn.edu.tsinghua.iginx.integration.expansion.constant.Constant;
 import cn.edu.tsinghua.iginx.integration.expansion.utils.SQLTestTools;
-import cn.edu.tsinghua.iginx.integration.tool.ConfLoader;
-import cn.edu.tsinghua.iginx.integration.tool.DBConf;
 import cn.edu.tsinghua.iginx.thrift.StorageEngineType;
 import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,17 +42,22 @@ public class PostgreSQLCapacityExpansionIT extends BaseCapacityExpansionIT {
   public PostgreSQLCapacityExpansionIT() {
     super(
         StorageEngineType.relational,
-        "engine=postgresql, username=postgres, password=postgres",
+        createPortsToExtraParams(
+            new HashMap<String, String>() {
+              {
+                put("engine", "postgresql");
+                put("username", "postgres");
+                put("password", "postgres");
+              }
+            }),
         new PostgreSQLHistoryDataGenerator());
-    ConfLoader conf = new ConfLoader(Controller.CONFIG_FILE);
-    DBConf dbConf = conf.loadDBConf(conf.getStorageType());
-    Constant.oriPort = dbConf.getDBCEPortMap().get(Constant.ORI_PORT_NAME);
-    Constant.expPort = dbConf.getDBCEPortMap().get(Constant.EXP_PORT_NAME);
-    Constant.readOnlyPort = dbConf.getDBCEPortMap().get(Constant.READ_ONLY_PORT_NAME);
-    wrongExtraParams.add("username=wrong, password=postgres");
+    Map<String, String> wrongParams = new HashMap<>();
+    wrongParams.put("username", "wrong");
+    wrongParams.put("password", "postgres");
+    wrongExtraParams.add(wrongParams);
     // wrong password situation cannot be tested because trust mode is used
 
-    updatedParams.put("password", "newPassword");
+    updatedParams.put("password", "newPassword,\\\"\\'");
   }
 
   @Override
@@ -163,12 +166,12 @@ public class PostgreSQLCapacityExpansionIT extends BaseCapacityExpansionIT {
 
   @Override
   protected void updateParams(int port) {
-    changeParams(port, "postgres", "newPassword");
+    changeParams(port, "postgres", "newPassword,\\\"''");
   }
 
   @Override
   protected void restoreParams(int port) {
-    changeParams(port, "newPassword", "postgres");
+    changeParams(port, "newPassword,\\\"'", "postgres");
   }
 
   @Override
@@ -182,17 +185,19 @@ public class PostgreSQLCapacityExpansionIT extends BaseCapacityExpansionIT {
   }
 
   private void changeParams(int port, String oldPw, String newPw) {
-    String scriptPath = updateParamsScriptDir + "postgresql.sh";
-    String os = System.getProperty("os.name").toLowerCase();
-    if (os.contains("mac")) {
-      scriptPath = updateParamsScriptDir + "postgresql_macos.sh";
-    } else if (os.contains("win")) {
-      scriptPath = updateParamsScriptDir + "postgresql_windows.sh";
+    String jdbcUrl = String.format("jdbc:postgresql://127.0.0.1:%d/", port);
+    try {
+      Class.forName("org.postgresql.Driver");
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException(e);
     }
-    // 脚本参数：对应端口，旧密码，新密码
-    int res = executeShellScript(scriptPath, String.valueOf(port), oldPw, newPw);
-    if (res != 0) {
-      fail("Fail to update postgresql params.");
+    try (Connection connection = DriverManager.getConnection(jdbcUrl, "postgres", oldPw);
+        Statement stmt = connection.createStatement()) {
+      String alterStmt = String.format("ALTER USER postgres WITH PASSWORD '%s';", newPw);
+      LOGGER.info("alter statement in {}: {}", port, alterStmt);
+      stmt.execute(alterStmt);
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
     }
   }
 
