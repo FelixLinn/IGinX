@@ -100,6 +100,7 @@ public abstract class BaseHistoryDataGenerator {
 
   public void writeHistoryDataToExp() {
     writeHistoryData(expPort, EXP_PATH_LIST, EXP_DATA_TYPE_LIST, EXP_VALUES_LIST);
+    writeHistoryData(expPort, EXP_PATH_LIST3, EXP_DATA_TYPE_LIST, EXP_VALUES_LIST);
   }
 
   public void writeExtendedHistoryDataToExp() {

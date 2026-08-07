@@ -1128,18 +1128,24 @@ public abstract class BaseCapacityExpansionIT {
   private void testAddAndRemoveStorageEngineWithPrefix() {
     String dataPrefix1 = "nt.wf03";
     String dataPrefix2 = "nt.wf04";
+    String dataPrefix3 = "unit0000000000";
     String schemaPrefixSuffix = "";
     String schemaPrefix1 = "p1";
     String schemaPrefix2 = "p2";
     String schemaPrefix3 = "p3";
+    String schemaPrefix4 = "p4";
 
     List<List<Object>> valuesList = EXP_VALUES_LIST1;
 
     // 添加不同 schemaPrefix，相同 dataPrefix
-    testShowColumnsInExpansion(true);
+    testShowColumnsInExpansion(true, false);
     addStorageEngine(
         expPort, true, true, dataPrefix1, schemaPrefix1, portsToExtraParams.get(expPort));
-    testShowColumnsInExpansion(false);
+    testShowColumnsInExpansion(false, false);
+    // 测试StorageUnit作为dataPrefix时的添加，show columns时能否正确显示而不过滤掉
+    addStorageEngine(
+        expPort, true, true, dataPrefix3, schemaPrefix4, portsToExtraParams.get(expPort));
+    testShowColumnsInExpansion(false, true);
 
     // 添加节点 dataPrefix = dataPrefix1 && schemaPrefix = p1 后查询
     String statement = "select status2 from *;";
@@ -1267,7 +1273,7 @@ public abstract class BaseCapacityExpansionIT {
     testShowClusterInfo(2);
   }
 
-  protected void testShowColumnsInExpansion(boolean before) {
+  protected void testShowColumnsInExpansion(boolean before, boolean dataPrefixWithStorageUnit) {
     String statement = "SHOW COLUMNS nt.wf03.*;";
     String expected =
         "Columns:\n"
@@ -1291,10 +1297,12 @@ public abstract class BaseCapacityExpansionIT {
               + "|                                                                       ln.wf02.version|  BINARY|\n"
               + "|                                                                  nt.wf03.wt01.status2|    LONG|\n"
               + "|                                                              nt.wf04.wt01.temperature|  DOUBLE|\n"
+              + "|                                                             unit0000000000.b.c.status|    LONG|\n"
+              + "|                                                        unit0000000000.b.c.temperature|  DOUBLE|\n"
               + "|zzzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzzzz|    LONG|\n"
               + "+--------------------------------------------------------------------------------------+--------+\n"
-              + "Total line number = 6\n";
-    } else { // 添加schemaPrefix为p1，dataPrefix为nt.wf03的数据源
+              + "Total line number = 8\n";
+    } else if (!dataPrefixWithStorageUnit) { // 添加schemaPrefix为p1，dataPrefix为nt.wf03的数据源
       expected =
           "Columns:\n"
               + "+--------------------------------------------------------------------------------------+--------+\n"
@@ -1306,9 +1314,30 @@ public abstract class BaseCapacityExpansionIT {
               + "|                                                                  nt.wf03.wt01.status2|    LONG|\n"
               + "|                                                              nt.wf04.wt01.temperature|  DOUBLE|\n"
               + "|                                                               p1.nt.wf03.wt01.status2|    LONG|\n"
+              + "|                                                             unit0000000000.b.c.status|    LONG|\n"
+              + "|                                                        unit0000000000.b.c.temperature|  DOUBLE|\n"
               + "|zzzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzzzz|    LONG|\n"
               + "+--------------------------------------------------------------------------------------+--------+\n"
-              + "Total line number = 7\n";
+              + "Total line number = 9\n";
+    } else {
+      expected =
+          "Columns:\n"
+              + "+--------------------------------------------------------------------------------------+--------+\n"
+              + "|                                                                                  Path|DataType|\n"
+              + "+--------------------------------------------------------------------------------------+--------+\n"
+              + "|                                                                                 b.b.b|    LONG|\n"
+              + "|                                                                        ln.wf02.status| BOOLEAN|\n"
+              + "|                                                                       ln.wf02.version|  BINARY|\n"
+              + "|                                                                  nt.wf03.wt01.status2|    LONG|\n"
+              + "|                                                              nt.wf04.wt01.temperature|  DOUBLE|\n"
+              + "|                                                               p1.nt.wf03.wt01.status2|    LONG|\n"
+              + "|                                                          p4.unit0000000000.b.c.status|    LONG|\n"
+              + "|                                                     p4.unit0000000000.b.c.temperature|  DOUBLE|\n"
+              + "|                                                             unit0000000000.b.c.status|    LONG|\n"
+              + "|                                                        unit0000000000.b.c.temperature|  DOUBLE|\n"
+              + "|zzzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzzzzzzzzzzzz|    LONG|\n"
+              + "+--------------------------------------------------------------------------------------+--------+\n"
+              + "Total line number = 11\n";
     }
     SQLTestTools.executeAndCompare(session, statement, expected, true);
 
